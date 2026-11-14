@@ -1,0 +1,45 @@
+{
+  "name": "centralnode",
+  "version": "0.1.0",
+  "description": "One central package store for every Node.js project on the computer. Each file is kept once; projects link to it.",
+  "type": "module",
+  "bin": {
+    "cn": "bin/cn.js"
+  },
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "prepack": "node build.mjs",
+    "test": "node build.mjs && node --test test/*.test.ts"
+  },
+  "license": "MIT",
+  "author": "phestplus",
+  "files": [
+    "bin",
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "npm",
+    "node_modules",
+    "disk space",
+    "hard links",
+    "package manager",
+    "windows",
+    "dedupe"
+  ],
+  "os": [
+    "win32"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/phestplus/centralnode.git"
+  },
+  "homepage": "https://github.com/phestplus/centralnode#readme",
+  "bugs": {
+    "url": "https://github.com/phestplus/centralnode/issues"
+  }
+}
