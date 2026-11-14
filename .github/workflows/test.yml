@@ -17,6 +17,9 @@ jobs:
       - run: npm test
       - name: Packed package runs from node_modules
         shell: bash
+        # Keep the store next to the test project: on Windows runners the temp folder is on D: and the profile on C:.
+        env:
+          CENTRALNODE_HOME: ${{ runner.temp }}/cn-home
         run: |
           npm pack
           mkdir -p "$RUNNER_TEMP/try" && cd "$RUNNER_TEMP/try" && npm init -y >/dev/null
