@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { filesDir, indexDir, hashFile, readJson, writeJson } from './util.ts';
+import { filesDir, indexDir, hashFile, readJson, writeJson, pathKey } from './util.ts';
 
 /*
  * The central store. Every distinct file from every node_modules is kept once, named by its SHA-256.
@@ -15,7 +15,7 @@ import { filesDir, indexDir, hashFile, readJson, writeJson } from './util.ts';
 const SKIP_DIRS = new Set(['.cache', '.vite', '.vite-temp', '.tmp', '.turbo', '.parcel-cache', '.angular', '.next', '.nuxt', '.svelte-kit', '.gradle', '.cxx', '.expo']);
 // Files npm rewrites in place on every install.
 const SKIP_FILES = new Set(['.package-lock.json', '.yarn-integrity', '.modules.yaml']);
-const MAX_LINKS = 1000; // NTFS allows 1023 per file; keep headroom.
+const MAX_LINKS = 1000; // NTFS allows 1023 links per file (ext4 65,000, APFS far more); keep headroom on every OS.
 
 export type LinkStats = { files: number; linked: number; already: number; stored: number; skipped: number; busy: number; savedBytes: number; busyFiles: string[] };
 
@@ -61,7 +61,7 @@ function replaceWithLink(target: string, file: string) {
 }
 
 type Index = Record<string, { size: number; mtime: number; ino: number; hash: string }>;
-const indexFile = (key: string) => path.join(indexDir(), crypto.createHash('sha256').update(key.toLowerCase()).digest('hex').slice(0, 24) + '.json');
+const indexFile = (key: string) => path.join(indexDir(), crypto.createHash('sha256').update(pathKey(key)).digest('hex').slice(0, 24) + '.json');
 
 /**
  * Move every file of a node_modules folder into the central store and leave hard links behind.

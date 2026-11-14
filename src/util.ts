@@ -5,14 +5,24 @@ import os from 'node:os';
 import { spawn } from 'node:child_process';
 
 /** Where CentralNode keeps everything. One place for the whole computer. */
-export function home(): string {
+export const isWindows = process.platform === 'win32';
+
+/** The default home for each OS: Windows %LOCALAPPDATA%, macOS ~/Library/Application Support, Linux $XDG_DATA_HOME or ~/.local/share. */
+function defaultHome(): string {
   if (process.env.CENTRALNODE_HOME) return process.env.CENTRALNODE_HOME;
-  const base = process.env.LOCALAPPDATA ?? path.join(os.homedir(), 'AppData', 'Local');
-  const def = path.join(base, 'CentralNode');
+  if (isWindows) return path.join(process.env.LOCALAPPDATA ?? path.join(os.homedir(), 'AppData', 'Local'), 'CentralNode');
+  if (process.platform === 'darwin') return path.join(os.homedir(), 'Library', 'Application Support', 'CentralNode');
+  return path.join(process.env.XDG_DATA_HOME || path.join(os.homedir(), '.local', 'share'), 'centralnode');
+}
+export function home(): string {
+  const def = defaultHome();
   const cfg = readJson(path.join(def, 'config.json'), {} as any);
   return cfg.storeDir ? path.resolve(cfg.storeDir) : def;
 }
-export const configFile = () => path.join(process.env.CENTRALNODE_HOME ?? path.join(process.env.LOCALAPPDATA ?? path.join(os.homedir(), 'AppData', 'Local'), 'CentralNode'), 'config.json');
+export const configFile = () => path.join(defaultHome(), 'config.json');
+
+/** Paths compare without case on Windows and macOS (their file systems ignore case), exactly on Linux. */
+export const pathKey = (p: string) => (isWindows || process.platform === 'darwin' ? path.resolve(p).toLowerCase() : path.resolve(p));
 export const filesDir = () => path.join(home(), 'store', 'v1', 'files');
 export const indexDir = () => path.join(home(), 'store', 'v1', 'index');
 export const registryFile = () => path.join(home(), 'projects', 'registry.json');
@@ -77,8 +87,9 @@ const quiet = (cmd: string, args: string[]) => (cmd === 'npm' && args.length ? [
 export function run(cmd: string, args: string[], cwd: string): Promise<number> {
   args = quiet(cmd, args);
   return new Promise((resolve) => {
-    const quoted = args.map((a) => (/[\s"&|<>^]/.test(a) ? `"${a.replace(/"/g, '\\"')}"` : a));
-    const child = spawn(cmd, quoted, { cwd, stdio: 'inherit', shell: true });
+    // Windows needs a shell to start npm.cmd; elsewhere npm is started directly, so no quoting is needed.
+    const quoted = isWindows ? args.map((a) => (/[\s"&|<>^]/.test(a) ? `"${a.replace(/"/g, '\\"')}"` : a)) : args;
+    const child = spawn(cmd, quoted, { cwd, stdio: 'inherit', shell: isWindows });
     child.on('exit', (code, signal) => resolve(code ?? (signal ? 1 : 0)));
     child.on('error', () => resolve(1));
   });
@@ -88,7 +99,7 @@ export function capture(cmd: string, args: string[], cwd = process.cwd()): Promi
   args = quiet(cmd, args);
   return new Promise((resolve) => {
     let out = '';
-    const child = spawn(cmd, args, { cwd, shell: true });
+    const child = spawn(cmd, args, { cwd, shell: isWindows });
     child.stdout.on('data', (d) => (out += d));
     child.on('exit', () => resolve(out.trim()));
     child.on('error', () => resolve(''));
@@ -96,5 +107,5 @@ export function capture(cmd: string, args: string[], cwd = process.cwd()): Promi
 }
 
 export const sameVolume = (a: string, b: string) => {
-  try { return fs.statSync(a).dev === fs.statSync(b).dev; } catch { return path.parse(path.resolve(a)).root.toLowerCase() === path.parse(path.resolve(b)).root.toLowerCase(); }
+  try { return fs.statSync(a).dev === fs.statSync(b).dev; } catch { return pathKey(path.parse(path.resolve(a)).root) === pathKey(path.parse(path.resolve(b)).root); }
 };

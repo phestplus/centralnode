@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { readJson, writeJson, registryFile } from './util.ts';
+import { readJson, writeJson, registryFile, pathKey } from './util.ts';
 
 export type Project = { id: string; name: string; path: string; registeredAt: string; lastLinkedAt?: string };
 
@@ -18,14 +18,14 @@ export function findRoot(from = process.cwd()): string | null {
 
 export const projects = (): Project[] => readJson(registryFile(), { projects: [] as Project[] }).projects;
 const save = (list: Project[]) => writeJson(registryFile(), { version: 1, projects: list });
-const same = (a: string, b: string) => path.resolve(a).toLowerCase() === path.resolve(b).toLowerCase();
+const same = (a: string, b: string) => pathKey(a) === pathKey(b);
 
 export function register(root: string): Project {
   const list = projects();
   const found = list.find((p) => same(p.path, root));
   if (found) return found;
   const pkg = readJson(path.join(root, 'package.json'), {} as any);
-  const p: Project = { id: crypto.createHash('sha256').update(path.resolve(root).toLowerCase()).digest('hex').slice(0, 12), name: pkg.name || path.basename(root), path: path.resolve(root), registeredAt: new Date().toISOString() };
+  const p: Project = { id: crypto.createHash('sha256').update(pathKey(root)).digest('hex').slice(0, 12), name: pkg.name || path.basename(root), path: path.resolve(root), registeredAt: new Date().toISOString() };
   save([...list, p]);
   return p;
 }

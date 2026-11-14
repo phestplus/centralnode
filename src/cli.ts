@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { home, filesDir, configFile, readJson, writeJson, bytes, withLock, run, capture, sameVolume } from './util.ts';
+import { home, filesDir, configFile, readJson, writeJson, bytes, withLock, run, capture, sameVolume, pathKey } from './util.ts';
 import { linkFolder, storeStatus, verifyStore, cleanStore, folderCost, type LinkStats } from './store.ts';
 import { findRoot, initProject, register, touch, projects, prune, unregister } from './project.ts';
 
@@ -45,7 +45,7 @@ function report(st: LinkStats, label: string) {
 async function linkProject(root: string, quiet = false) {
   if (!fs.existsSync(nm(root))) { if (!quiet) say('  No node_modules to link.'); return null; }
   const vol = sameVolume(root, home());
-  if (!vol) { say(`  Skipped: ${root} is on a different drive from the store (${home()}). Hard links cannot cross drives.`); return null; }
+  if (!vol) { say(`  Skipped: ${root} is on a different drive or file system from the store (${home()}). Hard links cannot cross file systems.`); return null; }
   register(root);
   const st = await withLock('store', () => linkFolder(nm(root), (n) => process.stdout.write(`\r  Linking... ${n} files`)));
   if (st.files >= 2000) process.stdout.write('\r' + ' '.repeat(40) + '\r');
@@ -116,7 +116,7 @@ export async function main(argv: string[]): Promise<number> {
         if (code) return code;
         const g = await globalRoot();
         say('\nCentralNode');
-        if (!sameVolume(g, home())) { say(`  Global folder ${g} is on another drive; not linked.`); return 0; }
+        if (!sameVolume(g, home())) { say(`  Global folder ${g} is on another drive or file system; not linked.`); return 0; }
         report(await withLock('store', () => linkFolder(g)), 'global packages');
         return 0;
       }
@@ -173,7 +173,7 @@ export async function main(argv: string[]): Promise<number> {
 
     case 'status': {
       const root = needRoot();
-      const p = projects().find((x) => path.resolve(x.path).toLowerCase() === root.toLowerCase());
+      const p = projects().find((x) => pathKey(x.path) === pathKey(root));
       say(`Project: ${root}`);
       say(`Registered: ${p ? 'yes' : 'no (run "cn init")'}`);
       if (!fs.existsSync(nm(root))) { say('node_modules: not installed'); return 0; }
@@ -185,7 +185,7 @@ export async function main(argv: string[]): Promise<number> {
     case 'projects': {
       const n = prune();
       const list = projects();
-      if (!list.length) say('No projects yet. Run "cn init" in one, or "cn adopt C:\\dev".');
+      if (!list.length) say('No projects yet. Run "cn init" in one, or "cn adopt <folder>".');
       for (const p of list) say(`${p.name.padEnd(32)} ${p.path}${p.lastLinkedAt ? `  (linked ${p.lastLinkedAt.slice(0, 10)})` : ''}`);
       if (n) say(`\n(${n} deleted projects removed from the list)`);
       return 0;
@@ -266,9 +266,9 @@ export async function main(argv: string[]): Promise<number> {
       fs.rmSync(a, { force: true }); fs.rmSync(b, { force: true });
       all = ok(links, `Hard links work in ${home()}`) && all;
       const root = findRoot();
-      if (root) all = ok(sameVolume(root, home()), `This project is on the same drive as the store`) && all;
+      if (root) all = ok(sameVolume(root, home()), `This project is on the same drive/file system as the store`) && all;
       const g = await globalRoot();
-      if (g) ok(sameVolume(g, home()), `Global npm folder ${g} is on the same drive`);
+      if (g) ok(sameVolume(g, home()), `Global npm folder ${g} is on the same drive/file system`);
       return all ? 0 : 1;
     }
 

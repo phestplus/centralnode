@@ -1,7 +1,7 @@
 {
   "name": "centralnode",
-  "version": "0.1.0",
-  "description": "One central package store for every Node.js project on the computer. Each file is kept once; projects link to it.",
+  "version": "0.1.1",
+  "description": "One package store for every Node.js project on the computer. Each file is kept once; projects link to it. Windows, macOS and Linux.",
   "type": "module",
   "bin": {
     "cn": "bin/cn.js"
@@ -28,11 +28,8 @@
     "disk space",
     "hard links",
     "package manager",
-    "windows",
-    "dedupe"
-  ],
-  "os": [
-    "win32"
+    "dedupe",
+    "cross-platform"
   ],
   "repository": {
     "type": "git",
